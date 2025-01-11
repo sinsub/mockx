@@ -26,6 +26,9 @@ dependencies {
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation(libs.guava)
+
+    implementation("net.bytebuddy:byte-buddy:1.15.4")
+    implementation("org.objenesis:objenesis:3.4")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
