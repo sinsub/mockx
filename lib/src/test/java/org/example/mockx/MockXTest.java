@@ -12,12 +12,14 @@ class MockXTest {
     @Test
     void create() {
         File proxy = MockX.create(File.class);
-        assertEquals("Hello World!", proxy.toString());
+        assertNull(proxy.toString());
+        assertEquals(0, proxy.hashCode());
     }
 
     @Test
     void mockClassWithoutDefaultConstructor() {
         ClassWithoutPublicConstructor proxy = MockX.create(ClassWithoutPublicConstructor.class);
-        assertEquals("Hello World!", proxy.toString());
+        assertNull(proxy.toString());
+        assertEquals(0, proxy.hashCode());
     }
 }
