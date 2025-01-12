@@ -37,9 +37,9 @@ public class MockXCore {
         return ObjenesisProvider.getObjenesisStd().newInstance(subClass);
     }
 
-    public synchronized Stubbing when() {
+    public synchronized <T> Stubbing<T> when(T methodCall) {
         Invocation invocation = invocations.get(invocations.size() - 1);
-        return new Stubbing(
+        return new Stubbing<T>(
             invocation,
             this
         );

@@ -15,7 +15,7 @@ public class MockX {
         return mockXCoreTL.get().createMock(typeToMock);
     }
 
-    public static Stubbing when(Object methodCall) {
-        return mockXCoreTL.get().when();
+    public static <T> Stubbing<T> when(T methodCall) {
+        return mockXCoreTL.get().when(methodCall);
     }
 }

@@ -1,6 +1,6 @@
 package org.example.mockx.core;
 
-public class Stubbing {
+public class Stubbing<T> {
 
     private final Invocation invocation;
     private final MockXCore mockXCore;
@@ -10,7 +10,7 @@ public class Stubbing {
         this.mockXCore = mockXCore;
     }
 
-    public void doReturn(Object returnValue) {
+    public void doReturn(T returnValue) {
         mockXCore.addDoReturn(invocation, returnValue);
     }
 }
