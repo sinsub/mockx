@@ -1,6 +1,7 @@
 package org.example.mockx;
 
 import org.example.mockx.core.MockXCore;
+import org.example.mockx.core.Stubbing;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
@@ -14,4 +15,7 @@ public class MockX {
         return mockXCoreTL.get().createMock(typeToMock);
     }
 
+    public static Stubbing when(Object methodCall) {
+        return mockXCoreTL.get().when();
+    }
 }
