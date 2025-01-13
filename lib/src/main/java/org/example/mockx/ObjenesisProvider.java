@@ -4,17 +4,15 @@ import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
 public class ObjenesisProvider {
-    private static Objenesis objenesisStd;
 
-    // TODO make this a proper singleton with Thread safety
+    private ObjenesisProvider() {}
+
+    private static final class ObjenesisStdHolder {
+        static final Objenesis objenesisStd = new ObjenesisStd();
+    }
+
     public static Objenesis getObjenesisStd() {
-        if (objenesisStd == null) {
-            objenesisStd = new ObjenesisStd();
-        }
-        return objenesisStd;
+        return ObjenesisStdHolder.objenesisStd;
     }
 
-    // Prevent object construction
-    private ObjenesisProvider() {
-    }
 }

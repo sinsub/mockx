@@ -2,6 +2,8 @@ package org.example.mockx;
 
 public class DefaultValues {
 
+    private DefaultValues() {}
+
     public static Object get(Class<?> type) {
         if (type.isPrimitive()) {
             if (type == boolean.class) return false;
@@ -12,8 +14,5 @@ public class DefaultValues {
             if (type == double.class) return 0.0;
         }
         return null;
-    }
-
-    private DefaultValues() {
     }
 }
