@@ -11,6 +11,10 @@ public class Stubbing<T> {
     }
 
     public void doReturn(T returnValue) {
-        mockXCore.addDoReturn(invocation, returnValue);
+        mockXCore.doReturn(invocation, returnValue);
+    }
+
+    public void doThrow(Throwable throwable) {
+        mockXCore.doThrow(invocation, throwable);
     }
 }

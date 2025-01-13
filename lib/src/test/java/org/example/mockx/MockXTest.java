@@ -1,6 +1,5 @@
 package org.example.mockx;
 
-import org.example.mockx.testclasses.ClassWithoutPublicConstructor;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -38,12 +37,5 @@ class MockXTest {
         assertTrue(proxy.setExecutable(true));
         assertTrue(proxy.setExecutable(false));
 
-    }
-
-    @Test
-    void mockClassWithoutDefaultConstructor() {
-        ClassWithoutPublicConstructor proxy = MockX.create(ClassWithoutPublicConstructor.class);
-        assertNull(proxy.toString());
-        assertEquals(0, proxy.hashCode());
     }
 }

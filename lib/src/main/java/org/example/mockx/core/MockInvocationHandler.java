@@ -1,5 +1,7 @@
 package org.example.mockx.core;
 
+import org.example.mockx.core.behavior.Behavior;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
@@ -14,10 +16,11 @@ public class MockInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return mockXCore.handleInvocation(new Invocation(
+        Behavior stubbedBehavior = mockXCore.handleInvocation(new Invocation(
             this.mockId,
             method,
             args
         ));
+        return stubbedBehavior.run();
     }
 }

@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
  * A simple struct to store an invocation.
  */
 public class Invocation {
-    public final int mockId;     // id of the mock object.
+    public final int mockId;
     public final Method method;
     public final Object[] args;
 
