@@ -1,5 +1,6 @@
 package org.example.mockx.core;
 
+import com.google.common.annotations.VisibleForTesting;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
@@ -13,8 +14,17 @@ import org.example.mockx.core.behavior.ThrowBehavior;
 import java.util.*;
 
 public class MockXCore {
+    private MockXCoreState state = MockXCoreState.IDLE;
     private final List<Mocking> mockingList = new ArrayList<>();
+    private final List<Invocation> invocationList = new ArrayList<>();
     private Invocation lastInvocation = null;
+    private Behavior lastBehavior = null;
+
+    enum MockXCoreState {
+        IDLE,
+        INVOKED,
+        BEHAVIOR_ADDED
+    }
 
     public synchronized <T> T createMock(Class<T> typeToMock) {
         int mockId = mockingList.size();
@@ -30,31 +40,92 @@ public class MockXCore {
         return ObjenesisProvider.getObjenesisStd().newInstance(subClass);
     }
 
-    public synchronized <T> Stubbing<T> when(T methodCall) {
-        if (lastInvocation == null) {
-            throw new IllegalStateException("Method Invocation Missing");
+    // ---------- thenBehavior ----------
+
+    synchronized void thenReturn(Object returnValue) {
+        thenBehavior(new ReturnBehavior(returnValue));
+    }
+
+    synchronized void thenThrow(Throwable throwable) {
+        thenBehavior(new ThrowBehavior(throwable));
+    }
+
+    private void thenBehavior(Behavior behavior) {
+        assertState();
+        switch (this.state) {
+            case IDLE:
+            case BEHAVIOR_ADDED: {
+                throw new IllegalStateException("Method Invocation Missing");
+            }
+            case INVOKED: {
+                // TODO check return type for ReturnBehavior
+                addBehavior(lastInvocation, behavior);
+                resetStubbingProgress();
+            } break;
         }
-        Stubbing<T> stubbing = new Stubbing<>(
-            lastInvocation,
-            this
-        );
-        lastInvocation = null;
-        return stubbing;
+        assertState();
     }
 
-    synchronized void doReturn(Invocation invocation, Object returnValue) {
-        // TODO check if type of return values matches the method
-        mockingList.get(invocation.mockId).addBehavior(invocation, new ReturnBehavior(returnValue));
+    // ---------- doBehavior ----------
+
+    public synchronized void doReturn(Object returnValue) {
+        doBehavior(new ReturnBehavior(returnValue));
     }
 
-    synchronized void doThrow(Invocation invocation, Throwable throwable) {
-        mockingList.get(invocation.mockId).addBehavior(invocation, new ThrowBehavior(throwable));
+    public synchronized void doThrow(Throwable throwable) {
+        doBehavior(new ThrowBehavior(throwable));
     }
 
-    public synchronized Behavior handleInvocation(Invocation invocation) {
+    private void doBehavior(Behavior behavior) {
+        assertState();
+        switch (this.state) {
+            case IDLE: {
+                lastBehavior = behavior;
+                this.state = MockXCoreState.BEHAVIOR_ADDED;
+            } break;
+            case INVOKED: {
+                commitLastInvocation();
+                lastBehavior = behavior;
+                this.state = MockXCoreState.BEHAVIOR_ADDED;
+            } break;
+            case BEHAVIOR_ADDED: {
+                throw new IllegalStateException("Stubbing already in progress, cannot start new stubbing");
+            }
+        }
+        assertState();
+    }
+
+    // ---------- invoke ----------
+
+    synchronized Behavior handleInvocation(Invocation invocation) {
+        assertState();
         Behavior stubbedBehavior = resolveBehavior(invocation);
-        lastInvocation = invocation;
+        switch (state) {
+            case IDLE: {
+                lastInvocation = invocation;
+                state = MockXCoreState.INVOKED;
+            } break;
+            case INVOKED: {
+                commitLastInvocation();
+                lastInvocation = invocation;
+            } break;
+            case BEHAVIOR_ADDED: {
+                if (lastBehavior instanceof ReturnBehavior) {
+                    if (invocation.method.getReturnType() == (void.class)) {
+                        throw new IllegalStateException("Cannot define return behavior for a void method");
+                    }
+                    // TODO check return type for ReturnBehavior
+                }
+                addBehavior(invocation, lastBehavior);
+                resetStubbingProgress();
+            } break;
+        }
+        assertState();
         return stubbedBehavior;
+    }
+
+    private synchronized void addBehavior(Invocation invocation, Behavior behavior) {
+        mockingList.get(invocation.mockId).addBehavior(invocation, behavior);
     }
 
     private synchronized Behavior resolveBehavior(Invocation invocation) {
@@ -63,6 +134,20 @@ public class MockXCore {
             resolvedBehavior = new ReturnBehavior(DefaultValues.get(invocation.method.getReturnType()));
         }
         return resolvedBehavior;
+    }
+
+    private synchronized void commitLastInvocation() {
+        if (lastInvocation == null) return;
+        int invocationId = invocationList.size();
+        invocationList.add(lastInvocation);
+        mockingList.get(lastInvocation.mockId).addInvocation(invocationId);
+        lastInvocation = null;
+    }
+
+    private synchronized void resetStubbingProgress() {
+        lastInvocation = null;
+        lastBehavior = null;
+        state = MockXCoreState.IDLE;
     }
 
     // Note:
@@ -74,5 +159,30 @@ public class MockXCore {
             if (!Objects.equals(args1[i], args2[i])) return false;
         }
         return true;
+    }
+
+
+    // ---------- For Internal Testing ---------
+
+    private void assertState() {
+        switch (this.state) {
+            case IDLE:
+                assert lastInvocation == null;
+                assert lastBehavior == null;
+                break;
+            case INVOKED:
+                assert lastInvocation != null;
+                assert lastBehavior == null;
+                break;
+            case BEHAVIOR_ADDED:
+                assert lastInvocation == null;
+                assert lastBehavior != null;
+                break;
+        }
+    }
+
+    @VisibleForTesting
+    MockXCoreState getState() {
+        return this.state;
     }
 }

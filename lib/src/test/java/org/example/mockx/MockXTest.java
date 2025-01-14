@@ -10,38 +10,44 @@ class MockXTest {
 
     @Test
     void create() {
-        File proxy = MockX.create(File.class);
-        assertNull(proxy.toString());
+        File mockFile = MockX.create(File.class);
+        assertNull(mockFile.toString());
 
         // specify behavior for integer return type
-        assertEquals(0, proxy.hashCode());
-        MockX.when(proxy.hashCode()).doReturn(1);
-        assertEquals(1, proxy.hashCode());
+        assertEquals(0, mockFile.hashCode());
+        MockX.when(mockFile.hashCode()).thenReturn(1);
+        assertEquals(1, mockFile.hashCode());
 
         // by default false is returned for all any argument
-        assertFalse(proxy.setExecutable(true));
-        assertFalse(proxy.setExecutable(false));
+        assertFalse(mockFile.setExecutable(true));
+        assertFalse(mockFile.setExecutable(false));
 
         // specify behavior when argument is false
-        MockX.when(proxy.setExecutable(false)).doReturn(true);
-        assertTrue(proxy.setExecutable(false));
+        MockX.when(mockFile.setExecutable(false)).thenReturn(true);
+        assertTrue(mockFile.setExecutable(false));
 
         // behavior for true remains default
-        assertFalse(proxy.setExecutable(true));
+        assertFalse(mockFile.setExecutable(true));
 
         // specify behavior when argument is true
-        MockX.when(proxy.setExecutable(true)).doReturn(true);
-        assertTrue(proxy.setExecutable(true));
+        MockX.when(mockFile.setExecutable(true)).thenReturn(true);
+        assertTrue(mockFile.setExecutable(true));
 
         // behavior defined for both argument now
-        assertTrue(proxy.setExecutable(true));
-        assertTrue(proxy.setExecutable(false));
+        assertTrue(mockFile.setExecutable(true));
+        assertTrue(mockFile.setExecutable(false));
 
         // doThrow
         Object equalsArg = new Object();
-        MockX.when(proxy.equals(equalsArg)).doThrow(new IllegalArgumentException("My exception"));
-        assertThrows(IllegalArgumentException.class, () -> proxy.equals(equalsArg));
-        assertEquals(DefaultValues.DEFAULT_BOOLEAN, proxy.equals(new Object()));
+        MockX.when(mockFile.equals(equalsArg)).thenThrow(new IllegalArgumentException("My exception"));
+        assertThrows(IllegalArgumentException.class, () -> mockFile.equals(equalsArg));
+        assertEquals(DefaultValues.DEFAULT_BOOLEAN, mockFile.equals(new Object()));
 
+
+        // mock void method
+        MockX.doThrow(new StackOverflowError()).when(mockFile).deleteOnExit();
+        assertThrows(StackOverflowError.class, mockFile::deleteOnExit);
+
+        assertThrows(IllegalStateException.class, () -> MockX.doReturn(1).when(mockFile).deleteOnExit());
     }
 }

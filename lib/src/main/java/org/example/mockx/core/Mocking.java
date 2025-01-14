@@ -10,6 +10,7 @@ public class Mocking implements InvocationHandler {
     private final int mockId;
     private final MockXCore core;
     private final HashMap<Method, List<Map.Entry<Object[], Behavior>>> stubbedBehavior = new HashMap<>();
+    private final List<Integer> invocationList = new ArrayList<>();
 
     public Mocking(int mockId, MockXCore core) {
         this.mockId = mockId;
@@ -32,6 +33,10 @@ public class Mocking implements InvocationHandler {
                 return list.get(i).getValue();
         }
         return null;
+    }
+
+    public void addInvocation(int invocationId) {
+        invocationList.add(invocationId);
     }
 
     @Override
