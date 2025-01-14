@@ -37,5 +37,11 @@ class MockXTest {
         assertTrue(proxy.setExecutable(true));
         assertTrue(proxy.setExecutable(false));
 
+        // doThrow
+        Object equalsArg = new Object();
+        MockX.when(proxy.equals(equalsArg)).doThrow(new IllegalArgumentException("My exception"));
+        assertThrows(IllegalArgumentException.class, () -> proxy.equals(equalsArg));
+        assertEquals(DefaultValues.DEFAULT_BOOLEAN, proxy.equals(new Object()));
+
     }
 }
