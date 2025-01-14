@@ -1,12 +1,11 @@
 package org.example.mockx;
 
 import org.example.mockx.core.BehaviorStubbing;
-import org.example.mockx.core.MockXCore;
 import org.example.mockx.core.InvocationStubbing;
+import org.example.mockx.core.MockXCore;
 
 public class MockX {
-
-    private static ThreadLocal<MockXCore> mockXCoreTL = ThreadLocal.withInitial(MockXCore::new);
+    private static final ThreadLocal<MockXCore> mockXCoreTL = ThreadLocal.withInitial(MockXCore::new);
 
     public static <T> T create(Class<T> typeToMock) {
         return mockXCoreTL.get().createMock(typeToMock);

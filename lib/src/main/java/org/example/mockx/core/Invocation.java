@@ -2,9 +2,6 @@ package org.example.mockx.core;
 
 import java.lang.reflect.Method;
 
-/**
- * A simple struct to store an invocation.
- */
 public class Invocation {
     public final int mockId;
     public final Method method;

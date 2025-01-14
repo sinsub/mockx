@@ -1,15 +1,14 @@
 package org.example.mockx;
 
 public class DefaultValues {
-
-    public static final boolean DEFAULT_BOOLEAN = false;
-    public static final char DEFAULT_CHAR = 0;
-    public static final byte DEFAULT_BYTE = 0;
-    public static final short DEFAULT_SHORT = 0;
-    public static final int DEFAULT_INT = 0;
-    public static final long DEFAULT_LONG = 0;
-    public static final float DEFAULT_FLOAT = 0;
-    public static final double DEFAULT_DOUBLE = 0;
+    public static final Boolean DEFAULT_BOOLEAN = false;
+    public static final Character DEFAULT_CHAR = 0;
+    public static final Byte DEFAULT_BYTE = 0;
+    public static final Short DEFAULT_SHORT = 0;
+    public static final Integer DEFAULT_INT = 0;
+    public static final Long DEFAULT_LONG = 0L;
+    public static final Float DEFAULT_FLOAT = 0.0F;
+    public static final Double DEFAULT_DOUBLE = 0.0;
     public static final Object DEFAULT_OBJECT = null;
 
     private DefaultValues() {}
@@ -27,6 +26,4 @@ public class DefaultValues {
         }
         return DEFAULT_OBJECT;
     }
-
-
 }

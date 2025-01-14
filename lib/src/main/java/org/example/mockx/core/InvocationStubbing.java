@@ -1,7 +1,6 @@
 package org.example.mockx.core;
 
 public class InvocationStubbing<T> {
-
     private final MockXCore mockXCore;
 
     public InvocationStubbing(MockXCore mockXCore) {

@@ -1,6 +1,5 @@
 package org.example.mockx.core;
 
-import com.google.common.annotations.VisibleForTesting;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
@@ -10,13 +9,16 @@ import org.example.mockx.ObjenesisProvider;
 import org.example.mockx.core.behavior.Behavior;
 import org.example.mockx.core.behavior.ReturnBehavior;
 import org.example.mockx.core.behavior.ThrowBehavior;
+import org.example.mockx.core.excpetion.ReturnTypeMismatchException;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public class MockXCore {
-    private MockXCoreState state = MockXCoreState.IDLE;
     private final List<Mocking> mockingList = new ArrayList<>();
     private final List<Invocation> invocationList = new ArrayList<>();
+    private MockXCoreState state = MockXCoreState.IDLE;
     private Invocation lastInvocation = null;
     private Behavior lastBehavior = null;
 
@@ -40,8 +42,6 @@ public class MockXCore {
         return ObjenesisProvider.getObjenesisStd().newInstance(subClass);
     }
 
-    // ---------- thenBehavior ----------
-
     synchronized void thenReturn(Object returnValue) {
         thenBehavior(new ReturnBehavior(returnValue));
     }
@@ -55,18 +55,17 @@ public class MockXCore {
         switch (this.state) {
             case IDLE:
             case BEHAVIOR_ADDED: {
+                resetStubbingProgress();
                 throw new IllegalStateException("Method Invocation Missing");
             }
             case INVOKED: {
-                // TODO check return type for ReturnBehavior
                 addBehavior(lastInvocation, behavior);
                 resetStubbingProgress();
-            } break;
+            }
+            break;
         }
         assertState();
     }
-
-    // ---------- doBehavior ----------
 
     public synchronized void doReturn(Object returnValue) {
         doBehavior(new ReturnBehavior(returnValue));
@@ -82,20 +81,21 @@ public class MockXCore {
             case IDLE: {
                 lastBehavior = behavior;
                 this.state = MockXCoreState.BEHAVIOR_ADDED;
-            } break;
+            }
+            break;
             case INVOKED: {
                 commitLastInvocation();
                 lastBehavior = behavior;
                 this.state = MockXCoreState.BEHAVIOR_ADDED;
-            } break;
+            }
+            break;
             case BEHAVIOR_ADDED: {
+                resetStubbingProgress();
                 throw new IllegalStateException("Stubbing already in progress, cannot start new stubbing");
             }
         }
         assertState();
     }
-
-    // ---------- invoke ----------
 
     synchronized Behavior handleInvocation(Invocation invocation) {
         assertState();
@@ -104,27 +104,34 @@ public class MockXCore {
             case IDLE: {
                 lastInvocation = invocation;
                 state = MockXCoreState.INVOKED;
-            } break;
+            }
+            break;
             case INVOKED: {
                 commitLastInvocation();
                 lastInvocation = invocation;
-            } break;
+            }
+            break;
             case BEHAVIOR_ADDED: {
-                if (lastBehavior instanceof ReturnBehavior) {
-                    if (invocation.method.getReturnType() == (void.class)) {
-                        throw new IllegalStateException("Cannot define return behavior for a void method");
-                    }
-                    // TODO check return type for ReturnBehavior
-                }
                 addBehavior(invocation, lastBehavior);
                 resetStubbingProgress();
-            } break;
+            }
+            break;
         }
         assertState();
         return stubbedBehavior;
     }
 
     private synchronized void addBehavior(Invocation invocation, Behavior behavior) {
+        if (behavior instanceof ReturnBehavior) {
+            if (!isAssignableConsideringBoxing(invocation.method.getReturnType(), behavior.getValue())) {
+                resetStubbingProgress();
+                throw new ReturnTypeMismatchException("Cannot return "
+                    + behavior.getValue()
+                    + " from a method with return type: "
+                    + invocation.method.getReturnType()
+                );
+            }
+        }
         mockingList.get(invocation.mockId).addBehavior(invocation, behavior);
     }
 
@@ -150,20 +157,6 @@ public class MockXCore {
         state = MockXCoreState.IDLE;
     }
 
-    // Note:
-    // - args[] is null if the method was invoked without any argument
-    static boolean argsMatch(Object[] args1, Object[] args2) {
-        if (args1 == args2) return true;                        // returns when both null
-        if (args1 == null || args2 == null) return false;       // returns when either null
-        for (int i = 0; i < args1.length; i++) {
-            if (!Objects.equals(args1[i], args2[i])) return false;
-        }
-        return true;
-    }
-
-
-    // ---------- For Internal Testing ---------
-
     private void assertState() {
         switch (this.state) {
             case IDLE:
@@ -181,8 +174,39 @@ public class MockXCore {
         }
     }
 
-    @VisibleForTesting
-    MockXCoreState getState() {
-        return this.state;
+
+    // Note:
+    // - args[] is null if the method was invoked without any argument
+    public static boolean argsMatch(Object[] args1, Object[] args2) {
+        if (args1 == args2) return true;                        // returns when both null
+        if (args1 == null || args2 == null) return false;       // returns when either null
+        for (int i = 0; i < args1.length; i++) {
+            if (!Objects.equals(args1[i], args2[i])) return false;
+        }
+        return true;
     }
+
+    public static boolean isAssignableConsideringBoxing(Class<?> target, Object value) {
+        if (target == null) return false;
+        if (target == void.class) return false;
+        if (target.isPrimitive()) {
+            if (value == null) return false;
+            Class<?> valueClass = value.getClass();
+            if (target == valueClass) return true;
+            // unboxing
+            if (target == boolean.class && valueClass == Boolean.class) return true;
+            if (target == char.class && valueClass == Character.class) return true;
+            if (target == byte.class && valueClass == Byte.class) return true;
+            if (target == short.class && valueClass == Short.class) return true;
+            if (target == int.class && valueClass == Integer.class) return true;
+            if (target == long.class && valueClass == Long.class) return true;
+            if (target == float.class && valueClass == Float.class) return true;
+            return target == double.class && valueClass == Double.class;
+        } else {
+            if (value == null) return true;
+            Class<?> valueClass = value.getClass();
+            return target.isAssignableFrom(valueClass);
+        }
+    }
+
 }
