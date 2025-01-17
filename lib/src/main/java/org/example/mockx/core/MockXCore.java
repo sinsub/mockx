@@ -10,6 +10,7 @@ import org.example.mockx.core.behavior.Behavior;
 import org.example.mockx.core.behavior.ReturnBehavior;
 import org.example.mockx.core.behavior.ThrowBehavior;
 import org.example.mockx.core.excpetion.ReturnTypeMismatchException;
+import org.example.mockx.core.excpetion.VerificationFailedException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,13 +20,15 @@ public class MockXCore {
     private final List<Mocking> mockingList = new ArrayList<>();
     private final List<Invocation> invocationList = new ArrayList<>();
     private MockXCoreState state = MockXCoreState.IDLE;
-    private Invocation lastInvocation = null;
-    private Behavior lastBehavior = null;
+    private Invocation previousInvocation = null;
+    private Behavior addedBehavior = null;
+    private Integer verificationCount = null;
 
     enum MockXCoreState {
         IDLE,
         INVOKED,
-        BEHAVIOR_ADDED
+        BEHAVIOR_ADDED,
+        VERIFICATION_REQUESTED
     }
 
     public synchronized <T> T createMock(Class<T> typeToMock) {
@@ -42,6 +45,11 @@ public class MockXCore {
         return ObjenesisProvider.getObjenesisStd().newInstance(subClass);
     }
 
+    public Invocation getInvocation(int invocationId) {
+        assert invocationId >= 0 && invocationId < invocationList.size();
+        return invocationList.get(invocationId);
+    }
+
     synchronized void thenReturn(Object returnValue) {
         thenBehavior(new ReturnBehavior(returnValue));
     }
@@ -54,12 +62,13 @@ public class MockXCore {
         assertState();
         switch (this.state) {
             case IDLE:
-            case BEHAVIOR_ADDED: {
+            case BEHAVIOR_ADDED:
+            case VERIFICATION_REQUESTED: {
                 resetStubbingProgress();
                 throw new IllegalStateException("Method Invocation Missing");
             }
             case INVOKED: {
-                addBehavior(lastInvocation, behavior);
+                addBehavior(previousInvocation, behavior);
                 resetStubbingProgress();
             }
             break;
@@ -79,19 +88,58 @@ public class MockXCore {
         assertState();
         switch (this.state) {
             case IDLE: {
-                lastBehavior = behavior;
+                addedBehavior = behavior;
                 this.state = MockXCoreState.BEHAVIOR_ADDED;
             }
             break;
             case INVOKED: {
                 commitLastInvocation();
-                lastBehavior = behavior;
+                addedBehavior = behavior;
                 this.state = MockXCoreState.BEHAVIOR_ADDED;
             }
             break;
             case BEHAVIOR_ADDED: {
                 resetStubbingProgress();
-                throw new IllegalStateException("Stubbing already in progress, cannot start new stubbing");
+                throw new IllegalStateException("Stubbing was in progress, could not start new stubbing");
+            }
+            case VERIFICATION_REQUESTED: {
+                resetStubbingProgress();
+                throw new IllegalStateException("Verification was in progress, could not start stubbing");
+            }
+        }
+        assertState();
+    }
+
+    public synchronized <T> T verify(T mock) {
+        handleVerificationRequest(1);
+        return mock;
+    }
+
+    public synchronized <T> T verify(int count, T mock) {
+        if (count < 0) throw new IllegalArgumentException("Count cannot be less than 0");
+        handleVerificationRequest(count);
+        return mock;
+    }
+
+    private void handleVerificationRequest(int count) {
+        assertState();
+        switch (state) {
+            case IDLE: {
+                verificationCount = count;
+                this.state = MockXCoreState.VERIFICATION_REQUESTED;
+            } break;
+            case INVOKED: {
+                commitLastInvocation();
+                verificationCount = count;
+                this.state = MockXCoreState.VERIFICATION_REQUESTED;
+            } break;
+            case BEHAVIOR_ADDED: {
+                resetStubbingProgress();
+                throw new IllegalStateException("Stubbing was in progress, could not start verification");
+            }
+            case VERIFICATION_REQUESTED: {
+                resetStubbingProgress();
+                throw new IllegalStateException("Verification was in progress, could not start new verification");
             }
         }
         assertState();
@@ -102,20 +150,28 @@ public class MockXCore {
         Behavior stubbedBehavior = resolveBehavior(invocation);
         switch (state) {
             case IDLE: {
-                lastInvocation = invocation;
+                previousInvocation = invocation;
                 state = MockXCoreState.INVOKED;
             }
             break;
             case INVOKED: {
                 commitLastInvocation();
-                lastInvocation = invocation;
+                previousInvocation = invocation;
             }
             break;
             case BEHAVIOR_ADDED: {
-                addBehavior(invocation, lastBehavior);
+                addBehavior(invocation, addedBehavior);
                 resetStubbingProgress();
             }
             break;
+            case VERIFICATION_REQUESTED: {
+                int count = mockingList.get(invocation.mockId).getMatchingInvocationCount(invocation);
+                if (verificationCount != count) {
+                    resetStubbingProgress();
+                    throw new VerificationFailedException("Expected " + verificationCount + " invocations, but got " + count);
+                }
+                resetStubbingProgress();
+            } break;
         }
         assertState();
         return stubbedBehavior;
@@ -144,36 +200,43 @@ public class MockXCore {
     }
 
     private synchronized void commitLastInvocation() {
-        if (lastInvocation == null) return;
+        if (previousInvocation == null) return;
         int invocationId = invocationList.size();
-        invocationList.add(lastInvocation);
-        mockingList.get(lastInvocation.mockId).addInvocation(invocationId);
-        lastInvocation = null;
+        invocationList.add(previousInvocation);
+        mockingList.get(previousInvocation.mockId).addInvocation(invocationId);
+        previousInvocation = null;
     }
 
     private synchronized void resetStubbingProgress() {
-        lastInvocation = null;
-        lastBehavior = null;
+        previousInvocation = null;
+        addedBehavior = null;
+        verificationCount = null;
         state = MockXCoreState.IDLE;
     }
 
     private void assertState() {
         switch (this.state) {
             case IDLE:
-                assert lastInvocation == null;
-                assert lastBehavior == null;
+                assert previousInvocation == null;
+                assert addedBehavior == null;
+                assert verificationCount == null;
                 break;
             case INVOKED:
-                assert lastInvocation != null;
-                assert lastBehavior == null;
+                assert previousInvocation != null;
+                assert addedBehavior == null;
+                assert verificationCount == null;
                 break;
             case BEHAVIOR_ADDED:
-                assert lastInvocation == null;
-                assert lastBehavior != null;
+                assert previousInvocation == null;
+                assert addedBehavior != null;
+                assert verificationCount == null;
                 break;
+            case VERIFICATION_REQUESTED:
+                assert previousInvocation == null;
+                assert addedBehavior == null;
+                assert verificationCount != null;
         }
     }
-
 
     // Note:
     // - args[] is null if the method was invoked without any argument

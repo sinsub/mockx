@@ -2,6 +2,7 @@ package org.example.mockx;
 
 import org.example.mockx.ClassForMocking.FirstException;
 import org.example.mockx.ClassForMocking.SecondException;
+import org.example.mockx.core.excpetion.VerificationFailedException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,17 +13,35 @@ public class SimpleMockingTest {
     @Test
     @DisplayName("Test when().thenReturn()")
     void testWhenThenReturn() {
+        // create a mock
         ClassForMocking mock = MockX.create(ClassForMocking.class);
 
-        // default behavior
+        // verify 0 invocations
+        MockX.verify(0, mock).singleArgumentMethod(0);
+        assertThrowsExactly(VerificationFailedException.class, () -> MockX.verify(1, mock).singleArgumentMethod(0));
+        assertThrowsExactly(IllegalArgumentException.class, () -> MockX.verify(-1, mock).singleArgumentMethod(0));
+
+        // default behavior is to return default value
         assertEquals(DefaultValues.DEFAULT_INT, mock.singleArgumentMethod(0));
+
+        // verify 1 invocation when asserting default behavior
+        MockX.verify(1, mock).singleArgumentMethod(0);
+        // 0 invocation for different argument
+        MockX.verify(0, mock).singleArgumentMethod(1);
 
         // first stubbing
         int firstStubbingArgument = 1, firstStubbingReturn = -1;
         MockX.when(mock.singleArgumentMethod(firstStubbingArgument)).thenReturn(firstStubbingReturn);
 
+        // no invocations with this argument
+        MockX.verify(0, mock).singleArgumentMethod(firstStubbingArgument);
+
         assertEquals(DefaultValues.DEFAULT_INT, mock.singleArgumentMethod(0));
         assertEquals(firstStubbingReturn, mock.singleArgumentMethod(firstStubbingArgument));
+
+        // verify invocations
+        MockX.verify(2, mock).singleArgumentMethod(0);
+        MockX.verify(1, mock).singleArgumentMethod(firstStubbingArgument);
 
         // second stubbing
         int secondStubbingArgument = 2, secondStubbingReturn = -2;
@@ -32,6 +51,12 @@ public class SimpleMockingTest {
         assertEquals(firstStubbingReturn, mock.singleArgumentMethod(firstStubbingArgument));
         assertEquals(secondStubbingReturn, mock.singleArgumentMethod(secondStubbingArgument));
 
+        // verify invocations
+        MockX.verify(3, mock).singleArgumentMethod(0);
+        MockX.verify(2, mock).singleArgumentMethod(firstStubbingArgument);
+        MockX.verify(1, mock).singleArgumentMethod(secondStubbingArgument);
+
+
         // override first stubbing
         int thirdStubbingReturn = -3;
         MockX.when(mock.singleArgumentMethod(firstStubbingArgument)).thenReturn(thirdStubbingReturn);
@@ -39,6 +64,11 @@ public class SimpleMockingTest {
         assertEquals(DefaultValues.DEFAULT_INT, mock.singleArgumentMethod(0));
         assertEquals(thirdStubbingReturn, mock.singleArgumentMethod(firstStubbingArgument));
         assertEquals(secondStubbingReturn, mock.singleArgumentMethod(secondStubbingArgument));
+
+        // verify invocations
+        MockX.verify(4, mock).singleArgumentMethod(0);
+        MockX.verify(3, mock).singleArgumentMethod(firstStubbingArgument);
+        MockX.verify(2, mock).singleArgumentMethod(secondStubbingArgument);
 
     }
 

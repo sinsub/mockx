@@ -39,6 +39,18 @@ public class Mocking implements InvocationHandler {
         invocationList.add(invocationId);
     }
 
+    public int getMatchingInvocationCount(Invocation invocation) {
+        assert invocation.mockId == mockId;
+        int count = 0;
+        for (int invocationId : invocationList) {
+            Invocation pastInvocation = core.getInvocation(invocationId);
+            if (MockXCore.argsMatch(invocation.args, pastInvocation.args)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         Behavior stubbedBehavior = core.handleInvocation(new Invocation(

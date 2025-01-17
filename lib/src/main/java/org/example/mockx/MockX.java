@@ -24,4 +24,12 @@ public class MockX {
         mockXCoreTL.get().doThrow(throwable);
         return new BehaviorStubbing();
     }
+
+    public static <T> T verify(T mock) {
+        return mockXCoreTL.get().verify(mock);
+    }
+
+    public static <T> T verify(int count, T mock) {
+        return mockXCoreTL.get().verify(count, mock);
+    }
 }
